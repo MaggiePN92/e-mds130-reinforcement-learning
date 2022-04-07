@@ -1,4 +1,5 @@
 .idea
+assignment-1/MNIST/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
