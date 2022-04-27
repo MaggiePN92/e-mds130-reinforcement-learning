@@ -6,13 +6,16 @@ import matplotlib.pyplot as plt
 
 
 class AgentQLearning:
-    def __init__(self, lr, gamma, max_eps, min_eps, epochs=1000, env=gym.make("CartPole-v1"), n_actions=2, state_dim=4):
+    def __init__(self, lr, gamma, max_eps, min_eps, epochs=1000, env=gym.make("CartPole-v1"), n_actions=2, state_dim=4,
+                 h1_in=120, h1_out=100, optimizer=torch.optim.Adam, loss_func=torch.nn.MSELoss):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.n_actions = n_actions
         self.state_dim = state_dim
+        self.h1_in = h1_in
+        self.h1_out = h1_out
         self.model = self.init_model().to(self.device)
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
-        self.loss_func = torch.nn.MSELoss()
+        self.optimizer = optimizer(self.model.parameters(), lr=lr)
+        self.loss_func = loss_func()
         self.lr = lr
         self.gamma = gamma # discount rate
         self.max_eps = max_eps
@@ -22,11 +25,11 @@ class AgentQLearning:
 
     def init_model(self):
         model = torch.nn.Sequential(
-            torch.nn.Linear(self.state_dim, 120),
+            torch.nn.Linear(self.state_dim, self.h1_in),
             torch.nn.ReLU(),
-            torch.nn.Linear(120, 100),
+            torch.nn.Linear(self.h1_in, self.h1_out),
             torch.nn.ReLU(),
-            torch.nn.Linear(100, self.n_actions)
+            torch.nn.Linear(self.h1_out, self.n_actions)
         )
         return model
 
