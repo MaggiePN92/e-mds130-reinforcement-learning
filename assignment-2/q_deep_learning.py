@@ -12,7 +12,7 @@ class QDeepLearning(AgentQLearning):
         super().__init__(lr, gamma, max_eps, min_eps, env, n_actions, state_dim, h1_in, h1_out, optimizer,
                          loss_func)
 
-    def train(self, epochs):
+    def train(self, epochs, max_num_games=150):
         losses = []
         epsilon = self.max_eps
         self.model.train()
@@ -28,20 +28,22 @@ class QDeepLearning(AgentQLearning):
             done = False
 
             # starting play
-            while not done:
+            for _ in range(max_num_games):
                 q_vals = self.model(state)
-                q_vals_np = q_vals.data.cpu().numpy()
+                # q_vals_np = q_vals.data.cpu().numpy()
+
 
                 if np.random.random() < epsilon:
                     action = np.random.choice(self.n_actions)
                 else:
-                    action = np.argmax(q_vals_np)
+                    # action = np.argmax(q_vals_np)
+                    action = torch.argmax(q_vals).item()
 
-                next_state, reward, done, info = self.env.step(action)
-                state = next_state = torch.from_numpy(next_state).to(self.device).float()
+                next_state, reward, done, _ = self.env.step(action)
+                state = torch.from_numpy(next_state).to(self.device).float()
 
                 with torch.no_grad():
-                    next_q_vals = self.model(next_state)
+                    next_q_vals = self.model(state)
 
                 y_hat = reward
 
@@ -57,6 +59,9 @@ class QDeepLearning(AgentQLearning):
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
+
+                if done:
+                    break
 
             if epsilon > self.min_eps:
                 epsilon -= (1 / 1000)

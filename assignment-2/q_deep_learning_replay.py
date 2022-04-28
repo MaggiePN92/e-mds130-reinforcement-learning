@@ -17,7 +17,7 @@ class QDeepLearningExpReplay(AgentQLearning):
         super().__init__(lr, gamma, max_eps, min_eps, env, n_actions, state_dim, h1_in, h1_out, optimizer,
                          loss_func)
 
-    def train(self, epochs=1000, mem_size=1000, batch_size=200):
+    def train(self, epochs=1000, mem_size=1000, batch_size=200, max_num_games=150):
         assert mem_size > batch_size, \
             f"Batch size = {batch_size} should be smaller than the size of the replay memory, mem_size = {mem_size}."
 
@@ -34,20 +34,19 @@ class QDeepLearningExpReplay(AgentQLearning):
             # 2. Start game
             #    a) Get q_vals
             #    b) Choose and do action, receive reward and new state
-            #    c) Calculate y_hat and y, and do backward
-
+            #    c) If memory is larger than batch size -> select batch_size rows from memory and do next step batched
+            #    d) Calculate y_hat and y, and do backward
             state = torch.from_numpy(self.env.reset()).to(self.device).float()
             done = False
 
 
-            while not done:
+            for _ in range(max_num_games):
                 q_vals = self.model(state)
-                q_vals_np = q_vals.data.cpu().numpy()
 
                 if np.random.random() < epsilon:
                     action = np.random.choice(self.n_actions)
                 else:
-                    action = np.argmax(q_vals_np)
+                    action = torch.argmax(q_vals).item()
 
                 next_state, reward, done, _ = self.env.step(action)
                 next_state = torch.from_numpy(next_state).to(self.device).float()
@@ -77,29 +76,22 @@ class QDeepLearningExpReplay(AgentQLearning):
                     y = q_vals.gather(dim=1, index=action_batch.long().unsqueeze(dim=1)).squeeze()
 
                     loss = self.loss_func(y, y_hat)
-                    # print(loss.item() / batch_size)
-
-                    # print(loss)
                     losses.append(loss.item() / batch_size)
-                    # print(losses)
                     self.optimizer.zero_grad()
                     loss.backward()
                     self.optimizer.step()
 
+                if done:
+                    break
 
-                    # print(len(replay))
-                    # print(len(losses))
-                    # print(np.mean(losses))
 
             if epsilon > self.min_eps:
                 epsilon -= (1 / 1000)
 
             # Print the progress
-            if ((e % np.round(epochs / 10) == 0)): #& (len(losses) > 0)):
-                # print(losses)
+            if ((e % np.round(epochs / 10) == 0)):
                 error = np.mean(losses)
                 print(f'epoch: {e:d}, error: {error:.2f}')
-                # tqdm.write((f'epoch: {e:d}, error: {error:.2f}'))
             plt.plot(losses)
 
 
