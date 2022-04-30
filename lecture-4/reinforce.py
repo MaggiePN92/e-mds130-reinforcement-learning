@@ -23,11 +23,18 @@ class Reinforce:
         )
         return network
 
-    def action_pred(self, state):
+    def action_pred(self, state, epsilon):
         act_prob = self.model(state).float()
-        print(act_prob)
-        action = np.random.choice(self.n_actions, p=act_prob.data.numpy())
+        if np.random.random() < epsilon:
+            action = np.random.choice(self.n_actions)
+        else:
+            action = np.random.choice(self.n_actions, p=act_prob.data.numpy())
         return action
+
+    def degenerte_eps(self, epsilon, min_epsilon):
+        if epsilon > min_epsilon:
+            epsilon *= 0.99
+        return epsilon
 
     def calc_expected_return(self, reward_batch, gamma):
         transition_len = max(reward_batch.shape)
@@ -42,9 +49,10 @@ class Reinforce:
         expected_return_batch /= expected_return_batch.max()
         return expected_return_batch
 
-    def train(self, gamma=0.99, horizon=500, max_trajectories=500):
+    def train(self, gamma=0.99, horizon=500, max_trajectories=3000, max_eps=0.99, min_eps=0.001):
         score = []
         losses = []
+        epsilon = max_eps
 
         for trajectory in range(max_trajectories):
             state = self.env.reset()
@@ -54,7 +62,8 @@ class Reinforce:
             reward_batch = torch.empty(size=(max_trajectories, 1))
 
             for t in range(horizon):
-                action = self.action_pred(torch.from_numpy(state).float())
+                action = self.action_pred(torch.from_numpy(state).float(), epsilon)
+                epsilon = self.degenerte_eps(epsilon, min_eps)
                 prev_state = state
                 state, _, done, info = self.env.step(action)
 
@@ -66,9 +75,10 @@ class Reinforce:
                 reward_batch[t] = t+1
 
                 if done:
-                    state_batch = state_batch[:max_trajectories]
-                    action_batch = action_batch[:max_trajectories]
-                    reward_batch = reward_batch[:max_trajectories]
+                    # print(t)
+                    state_batch = state_batch[:t]
+                    action_batch = action_batch[:t]
+                    reward_batch = reward_batch[:t]
                     break
 
             score.append(reward_batch.shape[0])
@@ -77,7 +87,7 @@ class Reinforce:
             pred_batch = self.model(state_batch)
             # print(pred_batch.shape)
             # print(pred_batch)
-            print(action_batch.shape)
+            # print(action_batch.shape)
             # print(action_batch)
             prob_batch = pred_batch.gather(dim=1, index=action_batch.long().view(-1, 1)).squeeze()
 
