@@ -7,18 +7,18 @@ import copy
 
 
 class DA2C(A2C):    
-    def partial_train(self, i, counter, params, info):
+    def partial_train(self, i, params, info):
         env = copy.deepcopy(self.env)
         scores = []
         gamma = params["gamma"]
+        epochs = params['epochs']
 
-        for e in range(params['epochs']):
+        for e in range(epochs):
             state = env.reset()
             values, probs, rewards = [], [], []
             done = False
             score = 0
             max_moves = 200
-            ecounter = 0       
             
             for _ in range(max_moves):
                 if done: break
@@ -59,29 +59,22 @@ class DA2C(A2C):
             actor_loss.backward()
             self.actor_optim.step()            
             
-            if ecounter % np.round(params['epochs']/10) == 0:
-                        print('worker: {}, epoch:{}, episode: {:d}, score: {:.2f}'.format(
-                            i, e, ecounter, score))
-            # Store the progress for each episode
-            info[ecounter] = {'score': info[ecounter]['score'] + score, 'count': info[ecounter]['count'] + 1} if info.get(
-                ecounter) else {'score': score, 'count': 1}
 
-
-        counter.value = counter.value + 1            
-
+            self.print_progress(e, e, epochs, i, score)
+            info = self.store_progress(info, e, score)
+          
 
     def train(self, params):
         self.actor.share_memory()
         self.critic.share_memory()
         
         processes = []
-        
-        counter = mp.Value('i', 0)
         info = mp.Manager().dict()
+        workers = params['workers']
         
-        for i in range(params['workers']):
+        for i in range(workers):
             p = mp.Process(target=self.partial_train, args=(
-                i, counter, params, info))
+                i, params, info))
             p.start()
             processes.append(p)
 
@@ -96,7 +89,7 @@ class DA2C(A2C):
 
 if __name__ == '__main__':
     training_params = {
-        'epochs': 5000,  
+        'epochs': 2000,  
         'gamma': 0.99,
         'workers': mp.cpu_count() 
     }
@@ -106,7 +99,7 @@ if __name__ == '__main__':
     agent = DA2C(env, 150, 4e-4)
 
     info = agent.train(training_params)
-    info_ = np.array([(k, v['score'] / v['count']) for k, v in info.items()])
+    plot_data = np.array([(k, v['score'] / v['count']) for k, v in info.items()])
     
-    agent.plot(info_)    
+    agent.plot(plot_data)    
     agent.test()

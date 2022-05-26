@@ -8,7 +8,7 @@ class A2C:
         torch.seed = 999
         torch.manual_seed(torch.seed)
         np.random.seed(torch.seed)
-        
+
         self.env = env
         self.env.seed = torch.seed
 
@@ -17,7 +17,7 @@ class A2C:
 
         self.actor = self.init_actor(h1)
         self.critic = self.init_critic(h1)
-        self.actor_optim = torch.optim.Adam(self.actor.parameters(), lr=lr)        
+        self.actor_optim = torch.optim.Adam(self.actor.parameters(), lr=lr)
         self.critic_optim = torch.optim.Adam(self.critic.parameters(), lr=lr)
         self.critic_loss_func = torch.nn.MSELoss()
 
@@ -57,6 +57,16 @@ class A2C:
             returns.append(return_)
         return torch.stack(returns).view(-1)
 
+    def print_progress(self, ep_counter, epoch, max_epochs, worker_id, score):
+        if ep_counter % np.round(max_epochs/10) == 0:
+            print(f'worker: {worker_id}, epoch:{epoch}, episode: {ep_counter:d}, score: {score:.2f}')
+
+    def store_progress(self, info, ep_counter, score):
+        info[ep_counter] = {
+            'score': info[ep_counter]['score'] + score, 'count': info[ep_counter]['count'] + 1} if info.get(
+                        ep_counter) else {'score': score, 'count': 1}
+        return info
+
     def train(self):
         raise NotImplementedError
 
@@ -64,7 +74,7 @@ class A2C:
         state = self.env.reset()
         done = False
         score = 0
-        
+
         for _ in range(max_moves):
             if done: break
             if render:
@@ -72,18 +82,18 @@ class A2C:
 
             action = self.choose_action(state)
 
-            state, reward, done, _ = self.env.step(action)    
+            state, reward, done, _ = self.env.step(action)
             score += reward
         
         print(f'reward: {score}')
-    
-    
+
+
     def plot(self, info):
         info.sort(axis=0)
         x, y = info[:, 0], info[:, 1]
-        
+
         plt.plot(x, y)
-        plt.title('Scores')
+        plt.title('Scores over episodes:')
         plt.xlabel('episode')
-        plt.ylabel('score')        
+        plt.ylabel('score')
         plt.show()
