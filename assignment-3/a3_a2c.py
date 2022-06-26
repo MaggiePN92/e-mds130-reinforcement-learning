@@ -55,7 +55,7 @@ class A2C:
         for ret in range(rewards.shape[0]):
             return_ = rewards[ret] + gamma * last_return
             returns.append(return_)
-        return torch.stack(returns).view(-1)
+        return torch.concat(returns)
 
     def print_progress(self, ep_counter, epoch, max_epochs, worker_id, score):
         if ep_counter % np.round(max_epochs/10) == 0:
@@ -80,19 +80,20 @@ class A2C:
             if render:
                 self.env.render()
 
-            action = self.choose_action(state)
+            policy = self.actor(torch.from_numpy(state).float())
+            action = self.choose_action(policy)
 
             state, reward, done, _ = self.env.step(action)
             score += reward
         
-        print(f'reward: {score}')
+        print(f'Test reward: {score}')
 
 
     def plot(self, info):
-        info.sort(axis=0)
-        x, y = info[:, 0], info[:, 1]
+        episodes = [k for k in info.keys()]
+        relative_score = [v["score"]/v["count"] for v in info.values()]
 
-        plt.plot(x, y)
+        plt.plot(episodes, relative_score)
         plt.title('Scores over episodes:')
         plt.xlabel('episode')
         plt.ylabel('score')

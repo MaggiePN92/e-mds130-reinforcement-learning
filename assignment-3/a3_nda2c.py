@@ -10,8 +10,8 @@ class NDA2C(A2C):
     def partial_train(self, i, params, info):
         env = copy.deepcopy(self.env)
         state = env.reset()
-        score = 0
         ep_counter = 0
+        score = 0
         gamma = params["gamma"]
         epochs = params['epochs']
         steps = params["nstep"]
@@ -29,27 +29,27 @@ class NDA2C(A2C):
                 action = self.choose_action(policy)
 
                 state, reward, done, _ = env.step(action)
+                
                 values.append(value)
                 probs.append(policy[action])
                 rewards.append(reward)
-
+                score += reward
+                
                 if done:
                     self.print_progress(ep_counter, e, epochs, i, score)
                     info = self.store_progress(info, ep_counter, score)
-
                     state = env.reset()
-                    score = 0
                     ep_counter += 1
+                    score = 0
                 else:
-                    score += reward
                     G = value.detach()
 
             values = torch.concat(values).flip(
-                dims=(0, )).view(-1)
+                dims=(0, ))
             probs = torch.stack(probs).flip(
-                dims=(0, )).view(-1)
+                dims=(0, ))
             rewards = torch.Tensor(rewards).flip(
-                dims=(0, )).view(-1)
+                dims=(0, ))
 
             returns = self.calc_returns(G, rewards, gamma)
 
@@ -95,14 +95,12 @@ if __name__ == '__main__':
     agent = NDA2C(env, 150, 1e-3)
 
     training_params = {
-        'epochs': 1500,  
+        'epochs': 300,  
         'gamma': 0.99,
         'nstep': 50,
         'workers': mp.cpu_count()
     }
-
     info = agent.train(training_params)
-    plot_data = np.array([(k, v['score'] / v['count']) for k, v in info.items()])
 
-    agent.plot(plot_data)
+    agent.plot(info)
     agent.test()

@@ -37,10 +37,10 @@ class DA2C(A2C):
             scores.append(score)            
             
             values = torch.concat(values).flip(
-                dims=(0, )).view(-1)                      
+                dims=(0, ))                     
             probs = torch.stack(probs).flip(
-                dims=(0, )).view(-1)
-            rewards = torch.Tensor(rewards).flip(dims=(0, )).view(-1)            
+                dims=(0, ))
+            rewards = torch.Tensor(rewards).flip(dims=(0, ))            
 
             
             return_ = torch.Tensor([0])
@@ -93,13 +93,9 @@ if __name__ == '__main__':
         'gamma': 0.99,
         'workers': mp.cpu_count() 
     }
-    
     env = gym.make('MountainCar-v0')
-    
-    agent = DA2C(env, 150, 4e-4)
-
+    agent = DA2C(env, 150, 1e-3)
     info = agent.train(training_params)
-    plot_data = np.array([(k, v['score'] / v['count']) for k, v in info.items()])
     
-    agent.plot(plot_data)    
+    agent.plot(info)    
     agent.test()

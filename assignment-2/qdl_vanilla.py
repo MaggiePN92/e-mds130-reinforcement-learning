@@ -29,14 +29,12 @@ class QDeepLearning(AgentQLearning):
 
             # starting play
             for _ in range(max_num_games):
+                # q-values for each action 
                 q_vals = self.model(state)
-                # q_vals_np = q_vals.data.cpu().numpy()
-
 
                 if np.random.random() < epsilon:
                     action = np.random.choice(self.n_actions)
                 else:
-                    # action = np.argmax(q_vals_np)
                     action = torch.argmax(q_vals).item()
 
                 next_state, reward, done, _ = self.env.step(action)
